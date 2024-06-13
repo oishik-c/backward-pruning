@@ -20,7 +20,7 @@ from dataset.squad import squad_dataset
 from efficiency.mac import compute_mask_mac
 from efficiency.latency import estimate_latency
 from prune.fisher import collect_mask_grads
-from prune.search import search_mac, search_latency
+from prune.updated_search import search_mac, search_latency
 from prune.rearrange import rearrange_mask
 from prune.rescale import rescale_mask
 from evaluate.nlp import test_accuracy
