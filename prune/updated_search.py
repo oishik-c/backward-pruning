@@ -46,8 +46,8 @@ def search_mac(
         
         total_importance = sorted_head_importance[:num_heads].sum() + sorted_neuron_importance[:num_neurons].sum()
         if total_importance > max_importance:
-            num_heads_to_prune = num_attention_heads - num_heads
-            num_neurons_to_prune = intermediate_size - num_neurons
+            num_heads_to_prune = num_attention_heads * num_hidden_layers - num_heads
+            num_neurons_to_prune = intermediate_size * num_hidden_layers - num_neurons
             max_importance = total_importance
             head_indicies = sorted_head_indicies[:num_heads]
             neuron_indicies = sorted_neuron_indicies[:num_neurons]
@@ -158,8 +158,8 @@ def search_latency(
 
                 total_importance = sorted_head_importance[:num_heads].sum() + sorted_neuron_importance[:num_neurons].sum()
                 if total_importance > max_importance:
-                    num_heads_to_prune = num_attention_heads - num_heads
-                    num_neurons_to_prune = intermediate_size - num_neurons
+                    num_heads_to_prune = num_attention_heads * num_hidden_layers - num_heads
+                    num_neurons_to_prune = intermediate_size * num_hidden_layers - num_neurons
                     max_importance = total_importance
 
                     head_indicies = sorted_head_indicies[:num_heads]
