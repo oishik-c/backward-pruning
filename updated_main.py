@@ -171,9 +171,16 @@ def main():
             args.constraint,
         )
         
+        print()
+        print(f'total number of layers: {config.num_hidden_layers}')
+        print(f'total number of heads: {config.num_attention_heads}')
+        print(f'total number of neurons: {config.intermediate_size}')
+        
+        print()
         print(f'num heads to prune: {num_heads_to_prune}')
         print(f'num neurons to prune: {num_neurons_to_prune}')
         
+        print()
         pruned_mac, orig_mac = compute_mask_mac(head_mask, neuron_mask, seq_len, config.hidden_size)
         print(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
         logger.info(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
