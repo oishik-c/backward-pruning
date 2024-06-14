@@ -37,8 +37,8 @@ def compute_mac(
 ):
     mac = 0.0
     for num_heads, num_neurons in zip(num_heads_per_layer, num_neurons_per_layer):
-        attention_mac = num_heads * mac_per_head(seq_len, hidden_size, attention_head_size, printed)
-        ffn_mac = num_neurons * mac_per_neuron(seq_len, hidden_size, printed)
+        attention_mac = num_heads * mac_per_head(seq_len, hidden_size, attention_head_size)
+        ffn_mac = num_neurons * mac_per_neuron(seq_len, hidden_size)
         mac += attention_mac + ffn_mac
     return mac
 
