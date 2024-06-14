@@ -1,19 +1,31 @@
-
+printed_head = False
+printed_neuron = False
 
 def mac_per_head(
     seq_len,
     hidden_size,
     attention_head_size,
 ):
+    global printed_head
     per_head_qkv = lambda seq_len: 3 * seq_len * hidden_size * attention_head_size
     per_head_attn = lambda seq_len: 2 * seq_len * seq_len * attention_head_size
     per_head_output = lambda seq_len: seq_len * attention_head_size * hidden_size
     mac = per_head_qkv(seq_len) + per_head_attn(seq_len) + per_head_output(seq_len)
+    if not printed_head:
+        print(f"\nMAC per head: {mac}")
+        printed_head = True
+    
     return mac
 
 
 def mac_per_neuron(seq_len, hidden_size):
-    return 2 * seq_len * hidden_size
+    global printed_neuron
+    mac = 2 * seq_len * hidden_size
+    if not printed_neuron:
+        print(f"\nMAC per neuron: {mac}")
+        printed_neuron = True
+    
+    return mac
 
 
 def compute_mac(
@@ -25,8 +37,8 @@ def compute_mac(
 ):
     mac = 0.0
     for num_heads, num_neurons in zip(num_heads_per_layer, num_neurons_per_layer):
-        attention_mac = num_heads * mac_per_head(seq_len, hidden_size, attention_head_size)
-        ffn_mac = num_neurons * mac_per_neuron(seq_len, hidden_size)
+        attention_mac = num_heads * mac_per_head(seq_len, hidden_size, attention_head_size, printed)
+        ffn_mac = num_neurons * mac_per_neuron(seq_len, hidden_size, printed)
         mac += attention_mac + ffn_mac
     return mac
 
