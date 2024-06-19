@@ -13,6 +13,7 @@ from transformers import (
     DataCollatorWithPadding,
     set_seed,
 )
+import matplotlib.pyplot as plt
 
 from dataset.glue import glue_dataset, max_seq_length, avg_seq_length
 from dataset.squad import squad_dataset
@@ -166,18 +167,55 @@ def run_plotter(
     logger.info(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
 
 
+def main():
+    tasks = ["qqp", "mnli", "mrpc", "sst2", "squad_v2", "squad", "qnli", "stsb"]
+    constraints = [i * 0.1 for i in range(11)]
+    
+    ckpt_dir_template = "/content/drive/MyDrive/bert-base-uncased/{}"
+    
+    results = {task: {'constraints': [], 'num_heads_to_prune': [], 'num_neurons_to_prune': [], 'mac': []} for task in tasks}
+
+    # Run the plotter function for each task and constraint
+    for task in tasks:
+        for constraint in constraints:
+            output = run_plotter(
+                model_name="bert-base-uncased",
+                task_name=task,
+                ckpt_dir=ckpt_dir_template.format(task),
+                output_dir="./output",
+                gpu=0,
+                metric="mac",
+                constraint=constraint,
+                mha_lut=None,
+                ffn_lut=None,
+                num_samples=2048,
+                seed=0,
+            )
+            # Collect the results
+            results[task]['constraints'].append(constraint)
+            results[task]['num_heads_to_prune'].append(output['num_heads_to_prune'])
+            results[task]['num_neurons_to_prune'].append(output['num_neurons_to_prune'])
+            results[task]['mac'].append(output['pruned_mac'] / output['orig_mac'] * 100.0)
+
+    # Plot the results
+    for task in tasks:
+        plt.figure(figsize=(10, 6))
+        plt.plot(results[task]['constraints'], results[task]['num_heads_to_prune'], label='Heads Pruned', marker='o')
+        plt.plot(results[task]['constraints'], results[task]['num_neurons_to_prune'], label='Neurons Pruned', marker='x')
+        plt.xlabel('Constraint')
+        plt.ylabel('Number of Elements Pruned')
+        plt.title(f'Pruning Results for {task.upper()}')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f'./plots/{task}_pruning_results.png')
+        plt.show()
+
 # Example usage:
 if __name__ == "__main__":
     run_plotter(
         model_name="bert-base-uncased",
-        task_name="sst2",
-        ckpt_dir="./checkpoints/bert-base-uncased-sst2",
-        output_dir="./output",
-        gpu=0,
+        task_name="qqp",
+        ckpt_dir="/content/drive/MyDrive/bert-base-uncased/qqp",
         metric="mac",
-        constraint=0.5,
-        mha_lut=None,
-        ffn_lut=None,
-        num_samples=2048,
-        seed=0,
+        constraint=0.6689,
     )
