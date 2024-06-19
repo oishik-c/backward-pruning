@@ -97,6 +97,7 @@ def main():
     model = model_generator.from_pretrained(args.ckpt_dir, config=config)
     tokenizer = AutoTokenizer.from_pretrained(
         args.model_name,
+        use_fast=True,
         use_auth_token=None,
     )
 
