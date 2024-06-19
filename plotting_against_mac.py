@@ -182,14 +182,8 @@ def main():
                 model_name="bert-base-uncased",
                 task_name=task,
                 ckpt_dir=ckpt_dir_template.format(task),
-                output_dir="./output",
-                gpu=0,
                 metric="mac",
-                constraint=constraint,
-                mha_lut=None,
-                ffn_lut=None,
-                num_samples=2048,
-                seed=0,
+                constraint=constraint
             )
             # Collect the results
             results[task]['constraints'].append(constraint)
@@ -200,22 +194,15 @@ def main():
     # Plot the results
     for task in tasks:
         plt.figure(figsize=(10, 6))
-        plt.plot(results[task]['constraints'], results[task]['num_heads_to_prune'], label='Heads Pruned', marker='o')
-        plt.plot(results[task]['constraints'], results[task]['num_neurons_to_prune'], label='Neurons Pruned', marker='x')
+        plt.plot(results[task]['constraints'], results[task]['num_heads_to_prune'], label='Heads Pruned', marker='o', color='blue')
+        plt.plot(results[task]['constraints'], results[task]['num_neurons_to_prune'], label='Neurons Pruned', marker='x', color='red')
         plt.xlabel('Constraint')
         plt.ylabel('Number of Elements Pruned')
         plt.title(f'Pruning Results for {task.upper()}')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'./plots/{task}_pruning_results.png')
         plt.show()
 
 # Example usage:
 if __name__ == "__main__":
-    run_plotter(
-        model_name="bert-base-uncased",
-        task_name="qqp",
-        ckpt_dir="/content/drive/MyDrive/bert-base-uncased/qqp",
-        metric="mac",
-        constraint=0.6689,
-    )
+    main()
