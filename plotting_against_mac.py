@@ -178,7 +178,7 @@ def run_plotter(
 
 def main():
     tasks = ["qqp", "mnli", "mrpc", "sst2", "squad_v2", "squad", "qnli", "stsb"]
-    constraints = [i * 0.1 for i in range(1, 11)]
+    constraints = [i * 0.1 for i in range(1, 10)]
     
     ckpt_dir_template = "/content/drive/MyDrive/bert-base-uncased/{}"
     
