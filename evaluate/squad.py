@@ -24,7 +24,7 @@ def eval_squad_acc(
     all_end_logits = []
     for batch in dataloader:
         for k, v in batch.items():
-            batch[k] = v.to("cuda", non_blocking=True)
+            batch[k] = v.to("cpu")
 
         outputs = model(head_mask=head_mask, **batch)
         start_logits = outputs.start_logits
