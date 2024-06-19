@@ -61,7 +61,7 @@ def eval_squad_loss(
     handles = apply_neuron_mask(model, neuron_mask)
     for batch in dataloader:
         for k, v in batch.items():
-            batch[k] = v.to("cuda", non_blocking=True)
+            batch[k] = v.to("cpu")
 
         outputs = model(head_mask=head_mask, **batch)
         loss.update(outputs.loss, n=batch["input_ids"].shape[0])
