@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import time
@@ -21,6 +20,8 @@ from efficiency.mac import compute_mask_mac
 from efficiency.latency import estimate_latency
 from prune.fisher import collect_mask_grads
 from prune.updated_search import search_mac, search_latency
+from prune.rearrange import rearrange_mask
+from prune.rescale import rescale_mask
 from evaluate.nlp import test_accuracy
 from utils.schedule import get_pruning_schedule
 
@@ -28,52 +29,34 @@ from utils.schedule import get_pruning_schedule
 logger = logging.getLogger(__name__)
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--model_name", type=str, required=True, default='bert-base-uncased')
-parser.add_argument("--task_name", type=str, required=True, choices=[
-    "mnli",
-    "qqp",
-    "qnli",
-    "sst2",
-    "stsb",
-    "mrpc",
-    "squad",
-    "squad_v2",
-])
-parser.add_argument("--ckpt_dir", type=str, required=True)
-parser.add_argument("--output_dir", type=str, default=None)
-parser.add_argument("--gpu", type=int, default=0)  # This argument can be removed, but kept for consistency
-
-parser.add_argument("--metric", type=str, choices=[
-    "mac",
-    "latency",
-], default="mac")
-parser.add_argument("--constraint", type=float, default=0.6689,
-    help="MAC/latency constraint relative to the original model",
-)
-parser.add_argument("--mha_lut", type=str, default=None)
-parser.add_argument("--ffn_lut", type=str, default=None)
-parser.add_argument("--num_samples", type=int, default=2048)
-parser.add_argument("--seed", type=int, default=0)
-
-
-def main():
-    args = parser.parse_args()
-    IS_SQUAD = "squad" in args.task_name
-    IS_LARGE = "large" in args.model_name
-    seq_len = 170 if IS_SQUAD else avg_seq_length(args.task_name)
+def run_plotter(
+    model_name: str,
+    task_name: str,
+    ckpt_dir: str,
+    output_dir: str = None,
+    gpu: int = 0,
+    metric: str = "mac",
+    constraint: float = 0.5,
+    mha_lut: str = None,
+    ffn_lut: str = None,
+    num_samples: int = 2048,
+    seed: int = 0,
+):
+    IS_SQUAD = "squad" in task_name
+    IS_LARGE = "large" in model_name
+    seq_len = 170 if IS_SQUAD else avg_seq_length(task_name)
 
     # Create the output directory
-    if args.output_dir is None:
-        args.output_dir = os.path.join(
+    if output_dir is None:
+        output_dir = os.path.join(
             "outputs",
-            args.model_name,
-            args.task_name,
-            args.metric,
-            str(args.constraint),
-            f"seed_{args.seed}",
+            model_name,
+            task_name,
+            metric,
+            str(constraint),
+            f"seed_{seed}",
         )
-    os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Initiate the logger
     logging.basicConfig(
@@ -82,21 +65,22 @@ def main():
         level=logging.INFO,
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler(os.path.join(args.output_dir, "log.txt")),
+            logging.FileHandler(os.path.join(output_dir, "log.txt")),
         ],
     )
-    logger.info(args)
+    logger.info(f"Starting with parameters: {locals()}")
 
-    # Set the experiment seed
-    set_seed(args.seed)
-    logger.info(f"Seed number: {args.seed}")
+    # Set a GPU and the experiment seed
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    set_seed(seed)
+    logger.info(f"Seed number: {seed}")
 
     # Load the finetuned model and the corresponding tokenizer
-    config = AutoConfig.from_pretrained(args.ckpt_dir)
+    config = AutoConfig.from_pretrained(ckpt_dir)
     model_generator = AutoModelForQuestionAnswering if IS_SQUAD else AutoModelForSequenceClassification
-    model = model_generator.from_pretrained(args.ckpt_dir, config=config)
+    model = model_generator.from_pretrained(ckpt_dir, config=config)
     tokenizer = AutoTokenizer.from_pretrained(
-        args.model_name,
+        model_name,
         use_fast=True,
         use_auth_token=None,
     )
@@ -104,7 +88,7 @@ def main():
     # Load the training dataset
     if IS_SQUAD:
         training_dataset = squad_dataset(
-            args.task_name,
+            task_name,
             tokenizer,
             training=True,
             max_seq_len=384,
@@ -112,10 +96,10 @@ def main():
         )
     else:
         training_dataset = glue_dataset(
-            args.task_name,
+            task_name,
             tokenizer,
             training=True,
-            max_seq_len=max_seq_length(args.task_name),
+            max_seq_len=max_seq_length(task_name),
             pad_to_max=False,
         )
 
@@ -123,7 +107,7 @@ def main():
     collate_fn = DataCollatorWithPadding(tokenizer)
     sample_dataset = Subset(
         training_dataset,
-        np.random.choice(len(training_dataset), args.num_samples).tolist(),
+        np.random.choice(len(training_dataset), num_samples).tolist(),
     )
     sample_batch_size = int((12 if IS_SQUAD else 32) * (0.5 if IS_LARGE else 1))
     sample_dataloader = DataLoader(
@@ -131,18 +115,19 @@ def main():
         batch_size=sample_batch_size,
         collate_fn=collate_fn,
         shuffle=False,
-        pin_memory=False,  # Removed pin_memory for CPU
+        pin_memory=True,
     )
 
     # Prepare the model
-    model = model.cpu()  # Moved the model to CPU
+    model = model.cuda()
     model.eval()
     for param in model.parameters():
         param.requires_grad_(False)
 
-    full_head_mask = torch.ones(config.num_hidden_layers, config.num_attention_heads)
-    full_neuron_mask = torch.ones(config.num_hidden_layers, config.intermediate_size)
-    
+    full_head_mask = torch.ones(config.num_hidden_layers, config.num_attention_heads).cuda()
+    full_neuron_mask = torch.ones(config.num_hidden_layers, config.intermediate_size).cuda()
+
+    start = time.time()
     # Search the optimal mask
     head_grads, neuron_grads = collect_mask_grads(
         model,
@@ -150,7 +135,7 @@ def main():
         full_neuron_mask,
         sample_dataloader,
     )
-    teacher_constraint = get_pruning_schedule(target=args.constraint, num_iter=2)[0]
+    teacher_constraint = get_pruning_schedule(target=constraint, num_iter=2)[0]
     num_teacher_heads_to_prune, num_teacher_neurons_to_prune, teacher_head_mask, teacher_neuron_mask = search_mac(
         config,
         head_grads,
@@ -163,22 +148,36 @@ def main():
         head_grads,
         neuron_grads,
         seq_len,
-        args.constraint,
+        constraint,
     )
     
     print()
-    print(f'total number of layers: {config.num_hidden_layers}')
-    print(f'total number of heads: {config.num_attention_heads}')
-    print(f'total number of neurons: {config.intermediate_size}')
+    print(f'Total number of layers: {config.num_hidden_layers}')
+    print(f'Total number of heads: {config.num_attention_heads}')
+    print(f'Total number of neurons: {config.intermediate_size}')
     
     print()
-    print(f'num heads to prune: {num_heads_to_prune}')
-    print(f'num neurons to prune: {num_neurons_to_prune}')
+    print(f'Num heads to prune: {num_heads_to_prune}')
+    print(f'Num neurons to prune: {num_neurons_to_prune}')
     
     print()
     pruned_mac, orig_mac = compute_mask_mac(head_mask, neuron_mask, seq_len, config.hidden_size)
     print(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
     logger.info(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
 
+
+# Example usage:
 if __name__ == "__main__":
-    main()
+    run_plotter(
+        model_name="bert-base-uncased",
+        task_name="sst2",
+        ckpt_dir="./checkpoints/bert-base-uncased-sst2",
+        output_dir="./output",
+        gpu=0,
+        metric="mac",
+        constraint=0.5,
+        mha_lut=None,
+        ffn_lut=None,
+        num_samples=2048,
+        seed=0,
+    )
