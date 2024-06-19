@@ -24,7 +24,7 @@ def eval_squad_acc(
     all_end_logits = []
     for batch in dataloader:
         for k, v in batch.items():
-            batch[k] = v.to("cpu")
+            batch[k] = v.to("cuda", non_blocking=True)
 
         outputs = model(head_mask=head_mask, **batch)
         start_logits = outputs.start_logits
@@ -61,7 +61,7 @@ def eval_squad_loss(
     handles = apply_neuron_mask(model, neuron_mask)
     for batch in dataloader:
         for k, v in batch.items():
-            batch[k] = v.to("cpu")
+            batch[k] = v.to("cuda", non_blocking=True)
 
         outputs = model(head_mask=head_mask, **batch)
         loss.update(outputs.loss, n=batch["input_ids"].shape[0])

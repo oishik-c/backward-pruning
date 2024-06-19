@@ -109,7 +109,7 @@ def collect_layer_inputs(
         handle = hijack_input(target_layer, inputs)
         for batch in prev_inputs:
             for k, v in batch.items():
-                batch[k] = v.to("cpu")
+                batch[k] = v.to("cuda")
             with MaskNeurons(model, neuron_mask):
                 model(head_mask=head_mask, **batch)
 

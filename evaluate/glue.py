@@ -14,7 +14,7 @@ def eval_glue_acc(model, head_mask, neuron_mask, dataloader, task_name):
     handles = apply_neuron_mask(model, neuron_mask)
     for batch in dataloader:
         for k, v in batch.items():
-            batch[k] = v.to("cpu")
+            batch[k] = v.to("cuda", non_blocking=True)
 
         outputs = model(head_mask=head_mask, **batch)
         if IS_STSB:

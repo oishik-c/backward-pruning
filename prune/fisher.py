@@ -14,7 +14,7 @@ def collect_mask_grads(model, head_mask, neuron_mask, dataloader):
     neuron_grads = []
     for batch in dataloader:
         for k, v in batch.items():
-            batch[k] = v.to("cpu")
+            batch[k] = v.to("cuda", non_blocking=True)
 
         outputs = model(head_mask=head_mask, **batch)
         loss = outputs.loss
