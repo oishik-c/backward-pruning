@@ -92,9 +92,9 @@ def main():
     logger.info(f"Seed number: {args.seed}")
 
     # Load the finetuned model and the corresponding tokenizer
-    config = AutoConfig.from_pretrained(args.ckpt_dir+'/config.json')
+    config = AutoConfig.from_pretrained(args.ckpt_dir)
     model_generator = AutoModelForQuestionAnswering if IS_SQUAD else AutoModelForSequenceClassification
-    model = model_generator.from_pretrained(args.ckpt_dir+'/pytorch_model.bin', config=config)
+    model = model_generator.from_pretrained(args.ckpt_dir, config=config)
     tokenizer = AutoTokenizer.from_pretrained(
         args.model_name,
         use_auth_token=None,
