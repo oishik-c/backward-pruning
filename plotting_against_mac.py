@@ -165,7 +165,7 @@ def run_plotter(
     pruned_mac, orig_mac = compute_mask_mac(head_mask, neuron_mask, seq_len, config.hidden_size)
     print(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
     logger.info(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
-    
+
     output = {
         'num_heads_to_prune': num_heads_to_prune,
         'num_neurons_to_prune': num_neurons_to_prune,
@@ -178,7 +178,7 @@ def run_plotter(
 
 def main():
     tasks = ["qqp", "mnli", "mrpc", "sst2", "squad_v2", "squad", "qnli", "stsb"]
-    constraints = [i * 0.1 for i in range(11)]
+    constraints = [i * 0.1 for i in range(1, 11)]
     
     ckpt_dir_template = "/content/drive/MyDrive/bert-base-uncased/{}"
     
@@ -210,6 +210,7 @@ def main():
         plt.title(f'Pruning Results for {task.upper()}')
         plt.legend()
         plt.grid(True)
+        plt.savefig(f'./plots/{task}_pruning_results.png')
         plt.show()
 
 # Example usage:
