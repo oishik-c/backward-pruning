@@ -172,6 +172,8 @@ def run_plotter(
         'pruned_mac': pruned_mac,
         'orig_mac': orig_mac
     }
+    
+    return output
 
 
 def main():
