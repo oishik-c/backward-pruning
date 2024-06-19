@@ -165,6 +165,13 @@ def run_plotter(
     pruned_mac, orig_mac = compute_mask_mac(head_mask, neuron_mask, seq_len, config.hidden_size)
     print(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
     logger.info(f"Pruned Model MAC: {pruned_mac / orig_mac * 100.0:.2f} %")
+    
+    output = {
+        'num_heads_to_prune': num_heads_to_prune,
+        'num_neurons_to_prune': num_neurons_to_prune,
+        'pruned_mac': pruned_mac,
+        'orig_mac': orig_mac
+    }
 
 
 def main():
