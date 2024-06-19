@@ -3,3 +3,6 @@ outputs/
 prune/search.py
 main.py
 README.md
+bert-base-uncased-20240619T085829Z-001.zip
+bert-base-uncased-20240619T085829Z-002.zip
+bert-base-uncased/*
